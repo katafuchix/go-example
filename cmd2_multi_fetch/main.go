@@ -59,6 +59,27 @@ func main() {
 		fmt.Printf("ID: %d, コード: %s, 銘柄名: %s\n", s.ID, s.Code, s.Name)
 	}
 
+	// 1. 格納用のスライス（可変長配列）を準備
+	var stocks []Stock
+
+	// 1. Query を使う（複数を返すクエリ）
+	rows, err = db.Query("SELECT id, code, name FROM stocks")
+
+	for rows.Next() {
+		// 毎回クリーンな変数を定義（スコープ優先！）
+		var s Stock
+
+		err := rows.Scan(&s.ID, &s.Code, &s.Name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// 2. スライスに追加（append）
+		stocks = append(stocks, s)
+	}
+
+	// ループの外で、まとめて処理ができる
+	fmt.Printf("全部で %d 件のデータを取得しました\n", len(stocks))
+
 	// 3. ループ中にエラーが起きていなかったか最後にチェック
 	if err = rows.Err(); err != nil {
 		log.Fatal(err)
