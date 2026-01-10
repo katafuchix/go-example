@@ -2,9 +2,15 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	// go get github.com/go-resty/resty/v"
@@ -108,25 +114,129 @@ func main() {
 		return
 	}
 
-	// あとはこの client を使って好きなページを叩くだけ
 	fmt.Println("✅ 認証完了。データを取得します...")
 
-	doc := doReq(client, "https://www.sokmil.com/idol/_item/item511685.htm", "")
-	fmt.Println("タイトル:", doc.Find("title").Text())
-	fmt.Println("H1の内容:", doc.Find("h1").Text())
+	// 1. 一覧ページからアイテムのURLをごっそり取得
+	fmt.Println("一覧ページを解析中...")
+	pageURLs := getItemURLs(client, "https://www.sokmil.com/idol/")
+	fmt.Printf("%d 個のアイテムが見つかりました\n", len(pageURLs))
 
-	// 1. HTML全体を文字列として取得
+	// 2. 並列処理の準備
+	var wg sync.WaitGroup
+	limit := make(chan struct{}, 3) // 同時3つまでに制限
+
+	for i, url := range pageURLs {
+		wg.Add(1)
+		go func(target string, index int) {
+			defer wg.Done()
+
+			limit <- struct{}{} // 枠に入る
+			fmt.Printf("[%d / %d] 処理中...\n", index+1, len(pageURLs))
+			crawlAndDownload(client, target) // ページ解析〜保存まで一気に実行
+			<-limit                          // 枠を空ける
+		}(url, i)
+	}
+
+	wg.Wait()
+	fmt.Println("すべての処理が完了しました！")
+}
+
+func getItemURLs(cl *http.Client, listURL string) []string {
+	doc := doReq(cl, listURL, "")
+	var urls []string
+
+	// aタグのhref属性をすべてチェック
+	doc.Find("a").Each(func(i int, s *goquery.Selection) {
+		href, exists := s.Attr("href")
+		// 条件： "/idol/_item/item" を含んでいるものだけを抽出
+		if exists && strings.Contains(href, "/idol/_item/item") {
+			// もし相対パス（/idol/..）なら絶対パスに変換
+			if strings.HasPrefix(href, "/") {
+				href = "https://www.sokmil.com" + href
+			}
+			urls = append(urls, href)
+		}
+	})
+
+	// 重複を排除する（同じリンクが複数ある場合があるため）
+	return unique(urls)
+}
+
+// 重複を消すための便利関数
+func unique(slice []string) []string {
+	m := make(map[string]bool)
+	var result []string
+	for _, s := range slice {
+		if !m[s] {
+			m[s] = true
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func crawlAndDownload(cl *http.Client, pageURL string) {
+	// 1. ページの中身を取得
+	doc := doReq(cl, pageURL, "") // 以前作った共通関数を使用
 	html, _ := doc.Html()
 
-	// 2. 正規表現で video_url: '...' の中身を探す
-	// パターン：video_url: '(ここを抜き出す)'
+	// 2. 正規表現で動画URL (video_url) を抜き出す
 	re := regexp.MustCompile(`video_url:\s*'(https?://[^']+)'`)
 	match := re.FindStringSubmatch(html)
 
-	if len(match) > 1 {
-		videoURL := match[1]
-		fmt.Println("動画URL取得成功:", videoURL)
-	} else {
-		fmt.Println("動画URLが見つかりませんでした")
+	if len(match) < 2 {
+		fmt.Printf("動画URLが見つかりませんでした: %s\n", pageURL)
+		return
 	}
+	videoURL := match[1]
+
+	// --- 保存先の設定 ---
+	saveDir := "mp4"
+
+	// 1. mp4フォルダがなければ作成する (0755は一般的な権限設定)
+	if _, err := os.Stat(saveDir); os.IsNotExist(err) {
+		os.Mkdir(saveDir, 0755)
+	}
+
+	// 3. 動画URLからファイル名を抜き出す (f=xxxx.mp4)
+	reFile := regexp.MustCompile(`f=([^&]+)`)
+	fileMatch := reFile.FindStringSubmatch(videoURL)
+
+	fileName := ""
+	if len(fileMatch) > 1 {
+		fileName = fileMatch[1]
+	} else {
+		// ID部分を抽出（例: item511685）
+		reID := regexp.MustCompile(`item\d+`)
+		idMatch := reID.FindString(pageURL)
+		if idMatch != "" {
+			fileName = idMatch + ".mp4"
+		} else {
+			// 最悪のケース：ランダムな値を付ける（衝突防止）
+			fileName = fmt.Sprintf("unknown_%d.mp4", time.Now().UnixNano())
+		}
+	}
+
+	// 「mp4/ファイル名」というパスを作る
+	// filepath.Joinを使うと、WindowsでもMacでも正しくスラッシュを処理してくれます
+	savePath := filepath.Join(saveDir, fileName)
+
+	// 4. ダウンロード実行
+	out, err := os.Create(savePath)
+	if err != nil {
+		return
+	}
+	defer out.Close()
+
+	req, _ := http.NewRequest("GET", videoURL, nil)
+	req.Header.Set("User-Agent", UA)
+	resp, err := cl.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Printf("開始: %s\n", fileName)
+	io.Copy(out, resp.Body)
+	fmt.Printf("完了: %s\n", fileName)
 }
