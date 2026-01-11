@@ -75,20 +75,29 @@ const (
 
 // 1. あなたが選んだ「短い doReq」
 func doReq(cl *http.Client, url, ref string) *goquery.Document {
+	// 新しいHTTP GETリクエストを作成
 	req, _ := http.NewRequest("GET", url, nil)
+	// ヘッダーにユーザーエージェントを設定
 	req.Header.Set("User-Agent", UA)
+	// もし参照元のURLが指定されている場合は、Refererヘッダーを設定
 	if ref != "" {
 		req.Header.Set("Referer", ref)
 	}
+	// リクエストを実行し、レスポンスを取得
 	res, _ := cl.Do(req)
+	// 関数終了時にレスポンスのボディを閉じるようにdeferを使う
 	defer res.Body.Close()
+	// レスポンスボディからgoquery用のドキュメントを作成
 	doc, _ := goquery.NewDocumentFromReader(res.Body)
+	// ドキュメントを返す
 	return doc
 }
 
 // 2. あなたが選んだ「短い getSession」
 func getSession() (*http.Client, error) {
+	// クッキージャーを新規に作成
 	jar, _ := cookiejar.New(nil)
+	// HTTPクライアントをクッキージャーと共に作成
 	client := &http.Client{Jar: jar}
 
 	// 認証ページ取得
@@ -97,12 +106,15 @@ func getSession() (*http.Client, error) {
 	// リンク抽出
 	link, _ := doc.Find("a.btn-ageauth-yes").Attr("href")
 	if link == "" {
+		// リンクが見つからなかった場合はエラーを返す
 		return nil, fmt.Errorf("認証ボタンが見つかりませんでした")
 	}
 
 	// 認証実行（Referer付き）
+	// 抽出したリンクに対して、Refererを付けて認証リクエストを送信
 	doReq(client, link, AuthURL)
 
+	// 認証完了したクライアントを返す
 	return client, nil
 }
 
@@ -142,7 +154,9 @@ func main() {
 }
 
 func getItemURLs(cl *http.Client, listURL string) []string {
+	// HTTPリクエストを送信してレスポンスのHTMLドキュメントを取得
 	doc := doReq(cl, listURL, "")
+	// アイテムのURLを格納するスライスを宣言
 	var urls []string
 
 	// aタグのhref属性をすべてチェック
@@ -154,6 +168,7 @@ func getItemURLs(cl *http.Client, listURL string) []string {
 			if strings.HasPrefix(href, "/") {
 				href = "https://www.sokmil.com" + href
 			}
+			// URLをスライスに追加
 			urls = append(urls, href)
 		}
 	})
@@ -228,12 +243,19 @@ func crawlAndDownload(cl *http.Client, pageURL string) {
 	}
 	defer out.Close()
 
+	// HTTP GETリクエストを作成
 	req, _ := http.NewRequest("GET", videoURL, nil)
+
+	// リクエストヘッダーにUser-Agentを設定
 	req.Header.Set("User-Agent", UA)
+
+	// HTTPクライアント(cl)でリクエストを送信し、レスポンスを取得
 	resp, err := cl.Do(req)
 	if err != nil {
+		// エラーが発生した場合は処理を中断
 		return
 	}
+	// プログラムの終了時にレスポンスボディを必ず閉じるようにす
 	defer resp.Body.Close()
 
 	fmt.Printf("開始: %s\n", fileName)
