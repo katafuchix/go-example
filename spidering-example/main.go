@@ -16,7 +16,7 @@ import (
 	// go get github.com/go-resty/resty/v"
 )
 
-// ブラウザのふりをするための共通User-Agent
+// 共通User-Agent
 const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 /*
@@ -46,8 +46,6 @@ func getSession() (*http.Client, error) {
 	if !exists {
 		// 取れなかった場合はHTMLをデバッグ出力して終了
 		html, _ := doc.Html()
-		fmt.Println("--- DEBUG HTML ---")
-		fmt.Println(html)
 		return nil, fmt.Errorf("認証ボタンが見つかりませんでした")
 	}
 
