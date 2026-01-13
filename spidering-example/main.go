@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	// go get github.com/go-resty/resty/v"
@@ -132,6 +131,7 @@ func main() {
 	fmt.Printf("%d 個のアイテムが見つかりました\n", len(pageURLs))
 
 	// 2. 並列処理の準備
+	// 並行処理で使用するWaitGroupの準備
 	var wg sync.WaitGroup
 	limit := make(chan struct{}, 3) // 同時3つまでに制限
 
@@ -193,6 +193,15 @@ func crawlAndDownload(cl *http.Client, pageURL string) {
 	doc := doReq(cl, pageURL, "") // 以前作った共通関数を使用
 	html, _ := doc.Html()
 
+	// --- 【追加】h1タグからタイトルを取得 ---
+	title := doc.Find("h1").First().Text()
+	title = strings.TrimSpace(title) // 前後の空白を消す
+
+	// 【重要】ファイル名に使えない禁止文字を置換する
+	// WindowsやMacでトラブルになる / : * ? " < > | などを "_" に変える
+	reg := regexp.MustCompile(`[\\/:*?"<>|]`)
+	safeTitle := reg.ReplaceAllString(title, "_")
+
 	// 2. 正規表現で動画URL (video_url) を抜き出す
 	re := regexp.MustCompile(`video_url:\s*'(https?://[^']+)'`)
 	match := re.FindStringSubmatch(html)
@@ -211,28 +220,32 @@ func crawlAndDownload(cl *http.Client, pageURL string) {
 		os.Mkdir(saveDir, 0755)
 	}
 
-	// 3. 動画URLからファイル名を抜き出す (f=xxxx.mp4)
-	reFile := regexp.MustCompile(`f=([^&]+)`)
-	fileMatch := reFile.FindStringSubmatch(videoURL)
-
-	fileName := ""
-	if len(fileMatch) > 1 {
-		fileName = fileMatch[1]
-	} else {
-		// ID部分を抽出（例: item511685）
-		reID := regexp.MustCompile(`item\d+`)
-		idMatch := reID.FindString(pageURL)
-		if idMatch != "" {
-			fileName = idMatch + ".mp4"
-		} else {
-			// 最悪のケース：ランダムな値を付ける（衝突防止）
-			fileName = fmt.Sprintf("unknown_%d.mp4", time.Now().UnixNano())
-		}
-	}
-
-	// 「mp4/ファイル名」というパスを作る
-	// filepath.Joinを使うと、WindowsでもMacでも正しくスラッシュを処理してくれます
+	// タイトルに拡張子を付けて保存パスを作成
+	fileName := safeTitle + ".mp4"
 	savePath := filepath.Join(saveDir, fileName)
+	/*
+			// 3. 動画URLからファイル名を抜き出す (f=xxxx.mp4)
+			reFile := regexp.MustCompile(`f=([^&]+)`)
+			fileMatch := reFile.FindStringSubmatch(videoURL)
+
+			fileName := ""
+			if len(fileMatch) > 1 {
+				fileName = fileMatch[1]
+			} else {
+				// ID部分を抽出（例: item511685）
+				reID := regexp.MustCompile(`item\d+`)
+				idMatch := reID.FindString(pageURL)
+				if idMatch != "" {
+					fileName = idMatch + ".mp4"
+				} else {
+					// 最悪のケース：ランダムな値を付ける（衝突防止）
+					fileName = fmt.Sprintf("unknown_%d.mp4", time.Now().UnixNano())
+				}
+			}
+		// 「mp4/ファイル名」というパスを作る
+		// filepath.Joinを使うと、WindowsでもMacでも正しくスラッシュを処理してくれます
+		savePath := filepath.Join(saveDir, fileName)
+	*/
 
 	// 4. ダウンロード実行
 	out, err := os.Create(savePath)
@@ -253,7 +266,7 @@ func crawlAndDownload(cl *http.Client, pageURL string) {
 		// エラーが発生した場合は処理を中断
 		return
 	}
-	// プログラムの終了時にレスポンスボディを必ず閉じるようにす
+	// プログラムの終了時にレスポンスボディを必ず閉じるように
 	defer resp.Body.Close()
 
 	fmt.Printf("開始: %s\n", fileName)
