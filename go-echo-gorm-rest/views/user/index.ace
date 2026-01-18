@@ -1,0 +1,32 @@
+= content main
+  div.header-actions style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"
+    h2 ユーザー一覧
+    a.btn.btn-primary href="/users/new" 新規登録
+
+  table.table
+    thead
+      tr
+        th ID
+        th 名前
+        th 更新日時
+        th 操作
+    tbody
+      {{range .Users}}
+      tr
+        td {{.ID}}
+        td {{.Name}}
+        td {{.UpdatedAt.Format "2006-01-02 15:04"}}
+        td
+          a.btn.btn-edit href="/users/edit/{{.ID}}" style="margin-right: 10px;" 編集
+          / カッコの直前にスペースを入れないのがAceのルールです
+          button.btn.btn-danger(
+            hx-delete="/users/{{.ID}}"
+            hx-confirm="本当にこのユーザーを削除しますか？"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+          ) 削除
+      {{end}}
+
+  {{if not .Users}}
+  p 登録されているユーザーはいません。
+  {{end}}

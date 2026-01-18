@@ -1,0 +1,18 @@
+= doctype html
+html lang=ja
+  head
+    meta charset=utf-8
+    title 管理システム
+    / これが絶対に必要です！
+    script src="https://unpkg.com/htmx.org"
+    / public/css/style.css を読み込む
+    link rel=stylesheet href="/static/css/style.css"
+  body
+    header
+      h1 管理画面
+    
+    main
+      = yield main
+    
+    footer
+      p (c) 2026 App
