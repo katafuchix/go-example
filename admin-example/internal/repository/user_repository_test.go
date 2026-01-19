@@ -32,3 +32,22 @@ func TestUserRepository_Create(t *testing.T) {
 	// 5. 後片付け（テストデータを消す、あるいはトランザクションでロールバックする）
 	db.Exec("DELETE FROM users WHERE id = ?", lastID)
 }
+
+/*
+func TestUserRepository_Create(t *testing.T) {
+    db := setupTestDB() // テスト用DB接続
+
+    // トランザクション開始
+    tx, _ := db.Begin()
+    defer tx.Rollback() // テストが終わったら何があっても元に戻す！
+
+    // sqlcの生成したクエリに tx (トランザクション) を渡す
+    repo := New(tx)
+
+    // 実行 & 検証
+    _, err := repo.Create(context.Background(), "テストユーザー")
+    assert.NoError(t, err)
+
+    // DBには何も残らないので、次のテストも真っさらな状態で始められる
+}
+*/
