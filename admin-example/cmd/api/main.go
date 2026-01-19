@@ -2,11 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"go-example/admin-example/internal/controller"
+	"go-example/admin-example/internal/infrastructure"
 	"go-example/admin-example/internal/repository"
 	"go-example/admin-example/internal/service"
-	"io"
 
 	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
@@ -14,27 +13,7 @@ import (
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/yosssi/ace"
 )
-
-// Aceテンプレート用のRenderer設定
-type TemplateRenderer struct{}
-
-func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	path := "views/" + name
-	fmt.Printf("Attempting to load template: %s.ace\n", path) // パスを表示
-
-	//tpl, err := ace.Load("views/"+name, "", nil)
-	// 第1引数: ベース(共通)テンプレートのパス
-	// 第2引数: 中身(Indexなど)のテンプレートのパス
-	tpl, err := ace.Load("views/layout/base", "views/"+name, nil)
-	if err != nil {
-		// どこでエラーが起きているかターミナルに出力する
-		fmt.Printf("Ace Load Error: %v\n", err)
-		return err
-	}
-	return tpl.Execute(w, data)
-}
 
 // CustomValidator はEchoのValidatorインターフェースを満たす構造体
 type CustomValidator struct {
@@ -57,7 +36,8 @@ func main() {
 	// 3. Echoの起動
 	e := echo.New()
 	e.Use(middleware.Logger())
-	e.Renderer = &TemplateRenderer{}
+	//e.Renderer = &TemplateRenderer{}
+	e.Renderer = &infrastructure.TemplateRenderer{}
 
 	// 1. セッションの設定を追加（これが今回のエラーの直接の原因）
 	// "secret-key" は適当な文字列でOKです。これがセッションの暗号化に使われます。

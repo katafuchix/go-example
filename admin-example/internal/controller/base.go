@@ -35,44 +35,48 @@ func (b *BaseController) IssueToken(c echo.Context) string {
 	return token
 }
 
-func (b *BaseController) GetValidationErrMsg(err error, form interface{}) string {
+// 複数のエラーをまとめて取得する
+func (b *BaseController) GetValidationErrors(err error, form interface{}) map[string]string {
+	errors := make(map[string]string)
 	if err == nil {
-		return ""
+		return errors
 	}
+
 	ve, ok := err.(validator.ValidationErrors)
 	if !ok {
-		return "入力エラーです"
+		return errors
 	}
 
-	errField := ve[0]
-
-	// 型情報を取得
 	t := reflect.TypeOf(form)
-	// もしポインタ (*UserCreateForm) が渡されたら、その中身 (UserCreateForm) に移動する
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
 
-	// フィールド名で検索してタグを取得
-	field, found := t.FieldByName(errField.Field())
-	if !found {
-		return errField.Field() + "の入力が正しくありません"
-	}
+	for _, fe := range ve {
+		// フィールド名とラベルの取得
+		label := fe.Field()
+		if field, found := t.FieldByName(fe.Field()); found {
+			l := field.Tag.Get("label")
+			if l != "" {
+				label = l
+			}
+		}
 
-	label := field.Tag.Get("label")
-	if label == "" {
-		label = errField.Field() // labelタグがない場合はフィールド名
-	}
+		// エラー内容に応じたメッセージ作成
+		var msg string
+		switch fe.Tag() {
+		case "required":
+			msg = label + "を入力してください"
+		case "min":
+			msg = label + "は" + fe.Param() + "文字以上で入力してください"
+		case "max":
+			msg = label + "は" + fe.Param() + "文字以内で入力してください"
+		default:
+			msg = label + "が正しくありません"
+		}
 
-	// ルールごとに日本語化
-	switch errField.Tag() {
-	case "required":
-		return label + "を入力してください"
-	case "min":
-		return label + "は" + errField.Param() + "文字以上で入力してください"
-	case "max":
-		return label + "は" + errField.Param() + "文字以内で入力してください"
-	default:
-		return label + "が正しくありません"
+		// フィールド名（小文字のnameなど）をキーにして保存
+		errors[fe.Field()] = msg
 	}
+	return errors
 }

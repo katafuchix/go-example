@@ -53,7 +53,8 @@ func (c *UserController) Update(ctx echo.Context) error {
 func (u *UserController) New(c echo.Context) error {
 	// 新規画面表示時にトークンを発行
 	return c.Render(http.StatusOK, "users/new", map[string]interface{}{
-		"csrf": u.IssueToken(c),
+		"csrf":   u.IssueToken(c),
+		"Errors": map[string]string{},
 	})
 }
 func (u *UserController) Create(c echo.Context) error {
@@ -68,13 +69,12 @@ func (u *UserController) Create(c echo.Context) error {
 	}
 
 	if err := c.Validate(form); err != nil {
-		// ここ！ form がポインタなので、BaseController側で「label」タグを読み取れます
-		msg := u.GetValidationErrMsg(err, form)
-		return u.renderNew(c, msg, form.Name)
+		// GetValidationErrors(複数版) を呼んでそのまま renderNew に渡す
+		return u.renderNew(c, u.GetValidationErrors(err, form), form.Name)
 	}
 
 	if err := u.svc.Register(c.Request().Context(), form.Name); err != nil {
-		return u.renderNew(c, "保存に失敗しました", form.Name)
+		return u.renderNew(c, map[string]string{"Main": "保存に失敗しました"}, form.Name)
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/users")
@@ -88,9 +88,10 @@ func (u *UserController) Edit(c echo.Context) error {
 	}
 
 	return c.Render(http.StatusOK, "users/edit", map[string]interface{}{
-		"ID":   user.ID,
-		"Name": user.Name.String,
-		"csrf": u.IssueToken(c), // 編集画面表示時もトークン発行
+		"ID":     user.ID,
+		"Name":   user.Name.String,
+		"csrf":   u.IssueToken(c), // 編集画面表示時もトークン発行
+		"Errors": map[string]string{},
 	})
 }
 
@@ -107,12 +108,11 @@ func (u *UserController) Update(c echo.Context) error {
 
 	if err := c.Validate(form); err != nil {
 		// 共通バリデーションメッセージ関数を呼び出し
-		msg := u.GetValidationErrMsg(err, form)
-		return u.renderNew(c, msg, form.Name)
+		return u.renderEdit(c, form.ID, u.GetValidationErrors(err, form), form.Name)
 	}
 
 	if err := u.svc.UpdateName(c.Request().Context(), form.ID, form.Name); err != nil {
-		return u.renderEdit(c, form.ID, "更新に失敗しました", form.Name)
+		return u.renderEdit(c, form.ID, map[string]string{"Main": "保存に失敗しました"}, form.Name)
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/users")
@@ -120,19 +120,20 @@ func (u *UserController) Update(c echo.Context) error {
 
 // --- ヘルパーメソッド (エラー時に新しいトークンを付けて再表示) ---
 
-func (u *UserController) renderNew(c echo.Context, errMsg string, name string) error {
+// msg (string) ではなく vErrors (map) を受け取るように変更
+func (u *UserController) renderNew(c echo.Context, vErrors map[string]string, name string) error {
 	return c.Render(http.StatusOK, "users/new", map[string]interface{}{
-		"Error": errMsg,
-		"Name":  name,
-		"csrf":  u.IssueToken(c), // 再表示のたびにトークンを更新
+		"Errors": vErrors, // mapごとテンプレートへ
+		"Name":   name,
+		"csrf":   u.IssueToken(c),
 	})
 }
 
-func (u *UserController) renderEdit(c echo.Context, id uint64, errMsg string, name string) error {
+func (u *UserController) renderEdit(c echo.Context, id uint64, vErrors map[string]string, name string) error {
 	return c.Render(http.StatusOK, "users/edit", map[string]interface{}{
-		"ID":    id,
-		"Error": errMsg,
-		"Name":  name,
-		"csrf":  u.IssueToken(c), // 再表示のたびにトークンを更新
+		"ID":     id,
+		"Errors": vErrors, // mapごとテンプレートへ
+		"Name":   name,
+		"csrf":   u.IssueToken(c), // 再表示のたびにトークンを更新
 	})
 }

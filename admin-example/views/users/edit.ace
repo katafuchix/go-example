@@ -5,7 +5,10 @@
   div style="color:red; margin-bottom:10px;"
     strong エラー: {{.Error}}
   {{end}}
-
+  {{if index .Errors "Name"}}
+    span.error style="color:red" {{index .Errors "Name"}}
+  {{end}}
+  
   form method="POST" action="/users/update"
     input type="hidden" name="id" value="{{.ID}}"
     input type="hidden" name="csrf" value="{{.csrf}}"
