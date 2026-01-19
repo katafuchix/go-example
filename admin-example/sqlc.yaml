@@ -1,0 +1,17 @@
+version: "2"
+sql:
+  - schema: "schema.sql"
+    queries: "query.sql"
+    engine: "mysql"
+    gen:
+      go:
+        # 出力先ディレクトリ
+        out: "internal/repository"
+        # パッケージ名
+        package: "repository"
+        # JSONタグ（`json:"id"` など）を構造体に付与する
+        emit_json_tags: true
+        # DBの型（longtext等）がNULL許可の場合、sql.NullStringなどを使う
+        emit_prepared_queries: false
+        # 構造体のメンバ名をDBのカラム名と一致させる（任意）
+        emit_interface: true
