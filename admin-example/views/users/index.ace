@@ -1,7 +1,7 @@
 = content main
   div.header-actions style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"
     h2 ユーザー一覧
-    a.btn.btn-primary href="/users/new" 新規登録
+    a.btn.btn-primary href="/users/create" 新規登録
     button#myButton.btn.btn-secondary クリックしてね
 
   script.

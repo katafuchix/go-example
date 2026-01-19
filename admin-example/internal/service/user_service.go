@@ -11,6 +11,7 @@ type UserService interface {
 	GetList(ctx context.Context) ([]repository.User, error)
 	UpdateName(ctx context.Context, id uint64, name string) error
 	DeleteUser(ctx context.Context, id uint64) error
+	FindByID(ctx context.Context, id uint64) (repository.User, error) // これを追加
 }
 
 type userService struct {
@@ -40,4 +41,9 @@ func (s *userService) UpdateName(ctx context.Context, id uint64, name string) er
 
 func (s *userService) DeleteUser(ctx context.Context, id uint64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *userService) FindByID(ctx context.Context, id uint64) (repository.User, error) {
+	// Repositoryの FindByID を呼び出すだけ
+	return s.repo.FindByID(ctx, id)
 }

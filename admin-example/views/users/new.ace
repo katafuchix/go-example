@@ -1,0 +1,20 @@
+= content main
+  h2 ユーザー新規登録
+
+  // エラーメッセージの表示
+  {{if .Error}}
+    div.alert style="color: white; background-color: #e74c3c; padding: 10px; margin-bottom: 15px; border-radius: 4px;"
+      strong エラー: 
+      span {{.Error}}
+  {{end}}
+
+  form method="POST" action="/users"
+    // ★ここを追加！ {{.csrf}} を name="csrf" で送る
+    input type="hidden" name="csrf" value="{{.csrf}}"
+    div style="margin-bottom: 15px;"
+      label style="display: block;" 名前
+      input type="text" name="name" value="{{.Name}}" placeholder="3文字以上20文字以内" style="width: 100%; padding: 8px;"
+    
+    div
+      button type="submit" style="padding: 8px 16px; background-color: #2ecc71; color: white; border: none; cursor: pointer;" 登録する
+      a href="/users" style="margin-left: 10px; color: #7f8c8d;" キャンセル

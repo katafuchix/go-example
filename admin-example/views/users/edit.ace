@@ -1,0 +1,20 @@
+= content main
+  h2 ユーザー編集
+
+  {{if .Error}}
+  div style="color:red; margin-bottom:10px;"
+    strong エラー: {{.Error}}
+  {{end}}
+
+  form method="POST" action="/users/update"
+    input type="hidden" name="id" value="{{.ID}}"
+    input type="hidden" name="csrf" value="{{.csrf}}"
+    div style="margin-bottom:15px;"
+      label 名前
+      br
+      input type="text" name="name" value="{{.Name}}"
+    
+    div
+      button type="submit" 更新する
+      span  
+      a href="/users" キャンセル
