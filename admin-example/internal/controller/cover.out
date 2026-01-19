@@ -1,0 +1,8 @@
+mode: set
+go-example/admin-example/internal/controller/user_controller.go:15.63,17.2 1 1
+go-example/admin-example/internal/controller/user_controller.go:20.56,22.16 2 1
+go-example/admin-example/internal/controller/user_controller.go:22.16,24.3 1 1
+go-example/admin-example/internal/controller/user_controller.go:28.2,33.55 2 1
+go-example/admin-example/internal/controller/user_controller.go:37.57,41.76 3 0
+go-example/admin-example/internal/controller/user_controller.go:41.76,43.3 1 0
+go-example/admin-example/internal/controller/user_controller.go:44.2,44.52 1 0
